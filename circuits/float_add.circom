@@ -161,8 +161,19 @@ template CheckBitLength(b) {
         sum_of_bits += (2 ** i) * bits[i];
     }
 
-    out <-- in - sum_of_bits > 0 ? 0 : 1;
+    component less_than = LessThan(b);
+    less_than.in[0] <== sum_of_bits;
+    less_than.in[1] <== in;
+    signal result <== less_than.out;
+    out <-- result ? 0 : 1;
     out * (1 - out) === 0;
+
+    // component b2n = Bits2Num(b);
+    // b2n.bits <== bits;
+    // signal sum_of_bits <== b2n.out;
+
+    // out <-- in > sum_of_bits ? 0 : 1;
+    // out * (1 - out) === 0;
 }
 
 /*
@@ -210,7 +221,16 @@ template RightShift(shift) {
     signal input x;
     signal output y;
 
-    // TODO
+    signal results[shift];
+    for (var i = 0; i < shift; i ++) {
+        results[i] <-- x >> (i + 1);
+    }
+
+    for (var i = 1; i < shift; i ++) {
+        (results[i - 1] - results[i] * 2) * (results[i - 1] - results[i] * 2 - 1) === 0;
+    }
+
+    y <== results[shift - 1];
 }
 
 /*
