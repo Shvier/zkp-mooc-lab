@@ -295,7 +295,30 @@ template LeftShift(shift_bound) {
     signal input skip_checks;
     signal output y;
 
-    // TODO
+    assert((skip_checks == 0 && shift < shift_bound) || skip_checks == 1);
+
+    signal exp[shift_bound];
+    for (var i = 0; i < shift_bound; i ++) {
+        exp[i] <== 2**(2**i); // 2**i corresponds to the value of the shift bits, 2**bit_value is x**b_i
+    }
+
+    var NUM_BITS = 8;
+
+    signal tmp[NUM_BITS];
+    signal results[NUM_BITS];
+
+    results[0] <== x;
+    component num2Bits = Num2Bits(NUM_BITS);
+    num2Bits.in <== shift;
+    signal shift_bits[NUM_BITS] <== num2Bits.bits;
+    for (var i = 0; i < NUM_BITS; i ++) {
+        tmp[i] <== shift_bits[i] * exp[i] + (1 - shift_bits[i]);
+        if (i < NUM_BITS - 1) {
+            inter[i + 1] <== results[i] * tmp[i];
+        } else {
+            y <== results[i] * tmp[i];
+        }
+    }
 }
 
 /*
@@ -316,14 +339,14 @@ template MSNZB(b) {
     n2b.in <== in;
     signal bits[b] <== n2b.bits;
 
-    // convert all valid bits to 1, e.g., [1, 1, ..., 1, 0, 0]
+    // convert all low bits to 1, e.g., [1, 1, ..., 1, 0, 0]
     signal one_bits[b];
     one_bits[b - 1] <== bits[b - 1];
     for (var i = b - 2; i >= 0; i --) {
         one_bits[i] <== (1 - bits[i]) * bits[i + 1] + bits[i];
     }
 
-    // convert one_bits into [0, 0, 0, ..., 1, 0, 0], i.e., one_hot
+    // convert one_bits into [0, 0, ..., 1, 0, 0], i.e., one_hot
     one_hot[b - 1] <== one_bits[b - 1];
     for (var i = b - 2; i >= 0; i --) {
         one_hot[i] <== (1 - one_bits[i + 1]) * one_bits[i];
