@@ -221,6 +221,11 @@ template RightShift(shift) {
     signal input x;
     signal output y;
 
+    var right = shift - 1;
+    if (right < 0) {
+        right = 0;
+    }
+
     signal results[shift];
     for (var i = 0; i < shift; i ++) {
         results[i] <-- x >> (i + 1);
@@ -230,7 +235,7 @@ template RightShift(shift) {
         (results[i - 1] - results[i] * 2) * (results[i - 1] - results[i] * 2 - 1) === 0;
     }
 
-    y <== results[shift - 1];
+    y <== results[right];
 }
 
 /*
