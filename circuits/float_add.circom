@@ -310,7 +310,24 @@ template MSNZB(b) {
     signal input skip_checks;
     signal output one_hot[b];
 
-    // TODO
+    assert((skip_checks == 0 && in != 0) || skip_checks == 1);
+
+    component n2b = Num2Bits(b);
+    n2b.in <== in;
+    signal bits[b] <== n2b.bits;
+
+    // convert all valid bits to 1, e.g., [1, 1, ..., 1, 0, 0]
+    signal one_bits[b];
+    one_bits[b - 1] <== bits[b - 1];
+    for (var i = b - 2; i >= 0; i --) {
+        one_bits[i] <== (1 - bits[i]) * bits[i + 1] + bits[i];
+    }
+
+    // convert one_bits into [0, 0, 0, ..., 1, 0, 0], i.e., one_hot
+    one_hot[b - 1] <== one_bits[b - 1];
+    for (var i = b - 2; i >= 0; i --) {
+        one_hot[i] <== (1 - one_bits[i + 1]) * one_bits[i];
+    }
 }
 
 /*
