@@ -314,7 +314,7 @@ template LeftShift(shift_bound) {
     for (var i = 0; i < NUM_BITS; i ++) {
         tmp[i] <== shift_bits[i] * exp[i] + (1 - shift_bits[i]);
         if (i < NUM_BITS - 1) {
-            inter[i + 1] <== results[i] * tmp[i];
+            results[i + 1] <== results[i] * tmp[i];
         } else {
             y <== results[i] * tmp[i];
         }
