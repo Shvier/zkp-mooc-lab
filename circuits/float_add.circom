@@ -149,31 +149,21 @@ template CheckBitLength(b) {
     signal bits[b];
 
     for (var i = 0; i < b; i++) {
-        bits[i] <-- (in >> i) & 1;
+        bits[i] <== 1;
     }
+
+    component bits2Num = Bits2Num(b);
+    bits2Num.bits <== bits;
+    signal sum_of_bits <== bits2Num.out;
 
     for (var i = 0; i < b; i++) {
         bits[i] * (1 - bits[i]) === 0;
     }
 
-    var sum_of_bits = 0;
-    for (var i = 0; i < b; i++) {
-        sum_of_bits += (2 ** i) * bits[i];
-    }
-
-    component less_than = LessThan(b);
-    less_than.in[0] <== sum_of_bits;
-    less_than.in[1] <== in;
-    signal result <== less_than.out;
-    out <-- result ? 0 : 1;
-    out * (1 - out) === 0;
-
-    // component b2n = Bits2Num(b);
-    // b2n.bits <== bits;
-    // signal sum_of_bits <== b2n.out;
-
-    // out <-- in > sum_of_bits ? 0 : 1;
-    // out * (1 - out) === 0;
+    component less_than = LessThan(252);
+    less_than.in[0] <== in;
+    less_than.in[1] <== sum_of_bits;
+    out <== less_than.out;
 }
 
 /*
