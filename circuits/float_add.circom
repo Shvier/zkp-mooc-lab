@@ -285,14 +285,14 @@ template LeftShift(shift_bound) {
     signal input skip_checks;
     signal output y;
 
-    assert((skip_checks == 0 && shift < shift_bound) || skip_checks == 1);
+    assert(shift < shift_bound || skip_checks);
 
     signal exp[shift_bound];
     for (var i = 0; i < shift_bound; i ++) {
         exp[i] <== 2**(2**i); // 2**i corresponds to the value of the shift bits, 2**bit_value is x**b_i
     }
 
-    var NUM_BITS = 8;
+    var NUM_BITS = 25;
 
     signal tmp[NUM_BITS];
     signal results[NUM_BITS];
@@ -325,9 +325,12 @@ template MSNZB(b) {
 
     assert((skip_checks == 0 && in != 0) || skip_checks == 1);
 
-    component n2b = Num2Bits(b);
+    component n2b = Num2Bits(b + 1);
     n2b.in <== in;
-    var one_bits[b] = n2b.bits;
+    var one_bits[b];
+    for (var i = 0; i < b; i ++) {
+        one_bits[i] = n2b.bits[i];
+    }
 
     // convert all low bits to 1, e.g., [1, 1, ..., 1, 0, 0]
     for (var i = b - 2; i >= 0; i --) {
@@ -357,7 +360,7 @@ template Normalize(k, p, P) {
     signal output m_out;
     assert(P > p);
 
-    assert((skip_checks == 0 && m != 0) || skip_checks == 1);
+    assert((e == 0 && m == 0) || (skip_checks == 0 && m != 0) || skip_checks);
 
     component msnzb = MSNZB(P + 1);
     msnzb.in <== m;
@@ -370,11 +373,13 @@ template Normalize(k, p, P) {
     e_out <== e + ell - p;
 
     signal shift <== P - ell;
-    component left_shift = LeftShift(25);
+    component left_shift = LeftShift(252);
     left_shift.x <== m;
     left_shift.shift <== shift;
     left_shift.skip_checks <== skip_checks;
     m_out <== left_shift.y;
+
+    assert(skip_checks || (m_out >= 2**P && m_out < 2**(P+1)));
 }
 
 /*
@@ -390,14 +395,22 @@ template FloatAdd(k, p) {
     signal output e_out;
     signal output m_out;
 
+    assert(e[0] != 0 || m[0] == 0);
+    assert(e[1] != 0 || m[1] == 0);
+
+    var P = 2*p + 1;
+
+    assert(m[0] == 0 || m[0] >= 2**p);
+    assert(m[1] == 0 || m[1] >= 2**p);
+
     var shift_bound = 252;
     var less_check_bound = 252;
     var skip_checks = 0;
 
-    component check_left = CheckWellFormedness(k, p + 1);
+    component check_left = CheckWellFormedness(k, p);
     check_left.e <== e[0];
     check_left.m <== m[0];
-    component check_right = CheckWellFormedness(k, p + 1);
+    component check_right = CheckWellFormedness(k, p);
     check_right.e <== e[1];
     check_right.m <== m[1];
 
@@ -449,17 +462,17 @@ template FloatAdd(k, p) {
 
     component left_shift = LeftShift(shift_bound);
     left_shift.x <== alpha_m * (1 - should_skip);
-    left_shift.shift <== diff * (1 - should_skip);
-    left_shift.skip_checks <== skip_checks;
+    left_shift.shift <== diff;
+    left_shift.skip_checks <== should_skip;
     
-    component normalize = Normalize(k, p, 2*p+2);
-    normalize.e <== beta_e * (1 - should_skip);
-    normalize.m <== (left_shift.y + beta_m) * (1 - should_skip);
-    normalize.skip_checks <== 1;
+    component normalize = Normalize(k, p, P);
+    normalize.e <== beta_e;
+    normalize.m <== (left_shift.y + beta_m);
+    normalize.skip_checks <== should_skip;
 
-    component round_and_check = RoundAndCheck(k, p, 2*p+2);
-    round_and_check.e <== normalize.e_out;
-    round_and_check.m <== normalize.m_out;
+    component round_and_check = RoundAndCheck(k, p, P);
+    round_and_check.e <== normalize.e_out * (1 - should_skip);
+    round_and_check.m <== normalize.m_out * (1 - should_skip);
 
     component if_else_e = IfThenElse();
     if_else_e.cond <== should_skip;
